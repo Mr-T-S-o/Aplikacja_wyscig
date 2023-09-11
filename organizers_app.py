@@ -19,10 +19,32 @@ def main(page: ft.Page):
     def print_athletes():        
         query = "SELECT id, athlete_name, athlete_team, athlete_time FROM athletes"
         cursor.execute(query)
-
-        page.add(ft.Text("Zawodnicy"))
+        
+        page.clean()
+        data_table = (ft.DataTable(
+            columns=[
+                    ft.DataColumn(ft.Text("Id zawodnika"), numeric=True),
+                    ft.DataColumn(ft.Text("Nazwa zawodnika")),
+                    ft.DataColumn(ft.Text("Drużyna zawodnika")),
+                    ft.DataColumn(ft.Text("Czas zawodnika")),
+            ],
+            rows=[]
+            )
+        )
+        
         for (id, athlete_name, athlete_team, athlete_time) in cursor:
-            page.add(ft.Text(f"Numer zawodnika: {id} - Nazwa: {athlete_name} - Drużyna: {athlete_team} - Czas: {athlete_time}")) 
+            data_table.rows.append(
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(ft.Text(f'{id}')),
+                        ft.DataCell(ft.Text(f'{athlete_name}')),
+                        ft.DataCell(ft.Text(f'{athlete_team}')),
+                        ft.DataCell(ft.Text(f'{athlete_time}'))
+                    ]
+                )
+            )
+            
+        page.add(data_table)      
 
 
     def add_team_to_dropdown():  
@@ -61,14 +83,50 @@ def main(page: ft.Page):
         dropdown_athlete_id.value = "Wybierz numer zawodnika"
 
 
+    def add_question_id_to_dropdown(e):
+        global dropdown_id_of_question
+
+        dropdown_id_of_question = ft.Dropdown(label="Podaj ID zapytania",
+            hint_text="Podaj ID zapytania")
+        
+        query = "SELECT id FROM questions"
+        cursor.execute(query)
+
+        for id in cursor:
+            option = (f'{id}')
+            id_cleaned = str(option).replace(",", "").replace("'", "").replace("(", "").replace(")", "")
+
+            dropdown_id_of_question.options.append(ft.dropdown.Option(id_cleaned))
+        
+        dropdown_id_of_question.value = "Wybierz ID"
+    
+    
     def print_teams():
         query = "SELECT id, teamname, number_of_athletes FROM teams"
         cursor.execute(query)
+        
+        data_table =ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Text("Id drużyny"), numeric=True),
+                ft.DataColumn(ft.Text("Nazwa drużyny")),
+                ft.DataColumn(ft.Text("Liczba zawodników"), numeric=True),
+            ],
+            rows=[]
+        )
+            
+        for (id, teamname, number_of_athletes) in cursor:
+            data_table.rows.append(
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(ft.Text(f'{id}')),
+                        ft.DataCell(ft.Text(f'{teamname}')),
+                        ft.DataCell(ft.Text(f'{number_of_athletes}'))
+                    ]
+                )
+            )
 
         page.clean()
-        page.add(ft.Text("Drużyny:"))
-        for (id, teamname, number_of_athletes) in cursor:
-            page.add(ft.Text(f'Numer drużyny: {id} - Nazwa drużyny: {teamname} - Liczba zawodników: {number_of_athletes}'))
+        page.add(data_table)
 
 
     def organizer_account_log_in(e):
@@ -150,8 +208,114 @@ def main(page: ft.Page):
         page.add(ft.Text("Menu organizatorów", size=30))
         page.add(ft.ElevatedButton(text="Zawodnicy", on_click=main_menu_athletes, icon="DIRECTIONS_BIKE_ROUNDED", bgcolor={ft.MaterialState.HOVERED: ft.colors.LIGHT_BLUE_100}, width=250))
         page.add(ft.ElevatedButton(text="Drużyny", on_click=main_menu_teams, icon="PEOPLE", bgcolor={ft.MaterialState.HOVERED: ft.colors.LIGHT_BLUE_100}, width=250))
+        page.add(ft.ElevatedButton(text="Wnioski", on_click=applications, bgcolor={ft.MaterialState.HOVERED: ft.colors.LIGHT_BLUE_100}, width=250))
+        page.add(ft.ElevatedButton(text="Zapytania", on_click=questions, bgcolor={ft.MaterialState.HOVERED: ft.colors.LIGHT_BLUE_100}, width=250))
 
 
+    def applications(e):
+        query = "SELECT id, athlete_name, athlete_team, athlete_adress, extra_informations, age, sex, application_status FROM athletes_applications"
+        cursor.execute(query)
+        
+        data_table = (ft.DataTable(
+            columns=[
+                    ft.DataColumn(ft.Text("Id zgłoszenia"), numeric=True),
+                    ft.DataColumn(ft.Text("Nazwa zawodnika")),
+                    ft.DataColumn(ft.Text("Drużyna zawodnika")),
+                    ft.DataColumn(ft.Text("Adres zawodnika")),
+                    ft.DataColumn(ft.Text("Dodatkowe informacje")),
+                    ft.DataColumn(ft.Text("Data urodzenia")),
+                    ft.DataColumn(ft.Text("Płeć")),
+                    ft.DataColumn(ft.Text("Status zgłoszenia")),
+            ],
+            rows=[]
+            )
+        )
+        
+        for id, athlete_name, athlete_team, athlete_adress, extra_informations, age, sex, application_status in cursor:
+            data_table.rows.append(
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(ft.Text(f'{id}')),
+                        ft.DataCell(ft.Text(f'{athlete_name}')),
+                        ft.DataCell(ft.Text(f'{athlete_team}')),
+                        ft.DataCell(ft.Text(f'{athlete_adress}')),
+                        ft.DataCell(ft.Text(f'{extra_informations}')),
+                        ft.DataCell(ft.Text(f'{age}')),
+                        ft.DataCell(ft.Text(f'{sex}')),
+                        ft.DataCell(ft.Text(f'{application_status}')),
+                    ]
+                )
+            )
+             
+        page.clean()
+        page.add(data_table, ft.ElevatedButton(text="Powrót do menu", on_click=main_menu_for_organizer))
+    
+        
+    def questions(e):
+        def confirm(e):
+            if not text_field.value:
+                text_field.error_text = "Podaj odpowiedź"
+            else:
+                    insertValue = {
+                        'id' : dropdown_id_of_question.value,
+                        'answer' : text_field.value
+                    }
+                    
+                    query = "UPDATE questions SET answer=%(answer)s WHERE id=%(id)s"
+                    
+                    cursor.execute(query, insertValue)
+                    connection.commit()
+                    
+                    page.banner = ft.Banner(
+                            bgcolor=ft.colors.GREEN_300,
+                            leading=ft.Icon(ft.icons.ADD_TASK_ROUNDED, color=ft.colors.GREEN, size=40),
+                            content=ft.Text(
+                                "Pomyślnie dodpowiedziano na zapytanie"
+                            ),
+                            actions=[
+                                ft.TextButton("OK", on_click=close_banner),
+                            ],
+                        )
+                    page.banner.open = True
+                    questions(e)
+                    
+            
+        add_question_id_to_dropdown(e)
+        
+        query = "SELECT id, user_name, question, answer FROM questions"
+        cursor.execute(query)
+        
+        data_table =ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Text("Id zapytania"), numeric=True),
+                ft.DataColumn(ft.Text("Nazwa użytkownika")),
+                ft.DataColumn(ft.Text("Treść")),
+                ft.DataColumn(ft.Text("Odpowiedź"))
+            ],
+            rows=[]
+        )
+            
+        for (id, user_name, question, answer) in cursor:
+            data_table.rows.append(
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(ft.Text(f'{id}')),
+                        ft.DataCell(ft.Text(f'{user_name}')),
+                        ft.DataCell(ft.Text(f'{question}')),
+                        ft.DataCell(ft.Text(f'{answer}'))
+                    ]
+                )
+            )
+
+        text_field = ft.TextField(label="Wpisz odpowiedź")
+        
+        page.clean()
+        page.add(data_table)
+        page.add(dropdown_id_of_question, text_field)
+        page.add(ft.ElevatedButton(text="Potwierdź", on_click=confirm, width=250))
+        page.add(ft.ElevatedButton(text="Powrót do menu", on_click=main_menu_for_organizer, icon="EXIT_TO_APP", width=250))
+        
+        
     def main_menu_athletes(e):
             page.clean()
             page.add(ft.Text("Wybierz opcję"))
@@ -603,7 +767,7 @@ def main(page: ft.Page):
     )
 
     page.horizontal_alignment="CENTER"
-    page.add(ft.Text("Witaj w strefie dla organizatorów, aby dalej korzystać z aplikacji, musisz się zalogować"))
+    page.add(ft.Text("Witaj w strefie dla organizatorów. Aby dalej korzystać z aplikacji, musisz się zalogować"))
     page.add(ft.ElevatedButton(text="Zaloguj się", on_click=organizer_account_log_in))
     
 
